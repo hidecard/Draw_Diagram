@@ -1,0 +1,16 @@
+<<<<<<< import React, { memo } from 'react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Trash2, Edit } from 'lucide-react';
+import type { Column } from '@/types/flow';
+=======
+import React, { memo } from 'react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Trash2, Edit, Key, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import type { Column } from '@/types/flow';

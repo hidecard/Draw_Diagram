@@ -5,7 +5,8 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Edit } from 'lucide-react';
+import { Trash2, Edit, Key, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Column } from '@/types/flow';
 
 interface TableNodeData {
@@ -17,6 +18,7 @@ interface TableNodeData {
 interface TableNodeProps extends NodeProps<TableNodeData> {
   onDelete?: (nodeId: string) => void;
   onEdit?: (nodeId: string) => void;
+  onUpdateColumn?: (nodeId: string, columnId: string, updates: Partial<Column>) => void;
 }
 
 export const TableNode = memo(({ id, data, selected, onDelete, onEdit }: TableNodeProps) => {
@@ -61,11 +63,15 @@ export const TableNode = memo(({ id, data, selected, onDelete, onEdit }: TableNo
           {columns.map((column, index) => (
             <div
               key={column.id}
-              className="flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              className="flex items-center justify-between p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 relative"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Replace emoji with icons */}
+                {column.isPrimaryKey && <Key className="w-4 h-4 text-green-600" />}
+                {column.isForeignKey && <LinkIcon className="w-4 h-4 text-yellow-500" />}
+                {!column.isPrimaryKey && !column.isForeignKey && <div style={{ width: 16 }} />} {/* spacer */}
+
                 <span className="text-sm font-medium truncate">
-                  {column.isPrimaryKey ? '🔑' : column.isForeignKey ? '🔗' : '  '}
                   {column.name}
                 </span>
                 <Badge variant="outline" className="text-xs flex-shrink-0">
@@ -78,77 +84,26 @@ export const TableNode = memo(({ id, data, selected, onDelete, onEdit }: TableNo
                   <Badge variant="secondary" className="text-xs flex-shrink-0">FK</Badge>
                 )}
               </div>
-              
-              {/* Handles for connections */}
-              {column.isPrimaryKey && (
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={`${getHandleId(column.id)}-pk`}
-                  style={{ 
-                    top: `${40 + index * 35}px`,
-                    right: '-8px',
-                    width: '10px',
-                    height: '10px',
-                    backgroundColor: '#10b981',
-                    border: '2px solid #ffffff',
-                    borderRadius: '50%'
-                  }}
-                />
-              )}
-              
-              {column.isForeignKey && (
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={`${getHandleId(column.id)}-fk`}
-                  style={{ 
-                    top: `${40 + index * 35}px`,
-                    left: '-8px',
-                    width: '10px',
-                    height: '10px',
-                    backgroundColor: '#f59e0b',
-                    border: '2px solid #ffffff',
-                    borderRadius: '50%'
-                  }}
-                />
-              )}
 
-              {/* Additional handle for M:1 relationships */}
-              {column.isPrimaryKey && (
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={`${getHandleId(column.id)}-m1`}
-                  style={{ 
-                    top: `${40 + index * 35 + 10}px`,
-                    right: '-8px',
-                    width: '8px',
-                    height: '8px',
-                    backgroundColor: '#8b5cf6',
-                    border: '1px solid #ffffff',
-                    borderRadius: '50%'
-                  }}
-                />
-              )}
-
-              {/* Additional handle for M:M relationships */}
-              {column.isForeignKey && (
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={`${getHandleId(column.id)}-mm`}
-                  style={{ 
-                    top: `${40 + index * 35 + 10}px`,
-                    left: '-8px',
-                    width: '8px',
-                    height: '8px',
-                    backgroundColor: '#ef4444',
-                    border: '1px solid #ffffff',
-                    borderRadius: '50%'
-                  }}
-                />
-              )}
+              {/* Single handle per column for connections */}
+              <Handle
+                type={column.isPrimaryKey ? "source" : "target"}
+                position={column.isPrimaryKey ? Position.Right : Position.Left}
+                id={getHandleId(column.id)}
+                style={{
+                  position: 'absolute',
+                  [column.isPrimaryKey ? 'right' : 'left']: '-8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: column.isPrimaryKey ? '#10b981' : '#f59e0b',
+                  border: '2px solid #ffffff',
+                  borderRadius: '50%',
+                  zIndex: 10,
+                  cursor: 'crosshair'
+                }}
+              />
             </div>
           ))}
         </div>

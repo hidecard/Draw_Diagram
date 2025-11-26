@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, Edit } from 'lucide-react';
 import type { RelationshipEdge as RelationshipEdgeType } from '@/types/flow';
 
-interface CustomEdgeProps extends EdgeProps<Record<string, unknown>> {
+interface CustomEdgeProps extends EdgeProps {
   sourcePosition: Position;
   targetPosition: Position;
 }
@@ -102,7 +102,7 @@ const RelationshipEdgeComponent = ({
                 {getCardinalitySymbol(type || 'one-to-many', true)}
               </Badge>
               <span className="font-medium text-gray-700">
-                {data?.name || 'has'}
+                {data?.name ? String(data.name) : 'has'}
               </span>
               <Badge variant="outline" className="text-xs">
                 {getCardinalitySymbol(type || 'one-to-many', false)}

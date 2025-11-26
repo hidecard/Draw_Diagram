@@ -17,6 +17,7 @@ interface FlowStore {
   updateColumn: (tableId: string, columnId: string, updates: Partial<Column>) => void;
   deleteColumn: (tableId: string, columnId: string) => void;
   addRelationship: (edge: RelationshipEdge) => void;
+  updateRelationship: (id: string, updates: Partial<RelationshipEdge>) => void;
   deleteRelationship: (id: string) => void;
   setSelectedNode: (id: string | null) => void;
   setSelectedEdge: (id: string | null) => void;
@@ -130,7 +131,16 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       edges: [...state.schema.edges, edge],
     },
   })),
-  
+
+  updateRelationship: (id, updates) => set((state) => ({
+    schema: {
+      ...state.schema,
+      edges: state.schema.edges.map((edge) =>
+        edge.id === id ? { ...edge, ...updates } : edge
+      ),
+    },
+  })),
+
   deleteRelationship: (id) => set((state) => ({
     schema: {
       ...state.schema,

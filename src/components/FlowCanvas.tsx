@@ -60,7 +60,7 @@ export const FlowCanvas: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(schema.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(schema.edges);
 
-  // Update store when nodes/edges change
+  // Update local state when schema changes
   React.useEffect(() => {
     setNodes(schema.nodes);
   }, [schema.nodes, setNodes]);
@@ -68,6 +68,24 @@ export const FlowCanvas: React.FC = () => {
   React.useEffect(() => {
     setEdges(schema.edges);
   }, [schema.edges, setEdges]);
+
+  // Sync local changes back to store
+  const handleNodesChange = useCallback((changes: any[]) => {
+    onNodesChange(changes);
+    // Update store with new node positions
+    changes.forEach(change => {
+      if (change.type === 'position' && change.dragging === false) {
+        const node = schema.nodes.find(n => n.id === change.id);
+        if (node && change.position) {
+          updateTable(change.id, { position: change.position });
+        }
+      }
+    });
+  }, [onNodesChange, schema.nodes, updateTable]);
+
+  const handleEdgesChange = useCallback((changes: any[]) => {
+    onEdgesChange(changes);
+  }, [onEdgesChange]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -78,43 +96,47 @@ export const FlowCanvas: React.FC = () => {
         
         if (sourceNode && targetNode) {
           // Parse handle IDs to determine connection type
+          // Handle ID format: "nodeId-columnId" (e.g., "node1-col1")
           const sourceHandleId = params.sourceHandle || '';
           const targetHandleId = params.targetHandle || '';
-          
-          const sourceColumnId = sourceHandleId.split('-').pop();
-          const targetColumnId = targetHandleId.split('-').pop();
+
+          const sourceParts = sourceHandleId.split('-');
+          const targetParts = targetHandleId.split('-');
+
+          // Extract column ID (everything after the first dash)
+          const sourceColumnId = sourceParts.slice(1).join('-');
+          const targetColumnId = targetParts.slice(1).join('-');
           
           const sourceColumn = sourceNode.data.columns.find(c => c.id === sourceColumnId);
           const targetColumn = targetNode.data.columns.find(c => c.id === targetColumnId);
           
-          // Determine relationship type based on handle types
+          // Determine relationship type based on column properties
           let relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-many' = 'one-to-many';
           let relationshipName = `${sourceNode.data.name}_${targetNode.data.name}`;
-          
-          if (sourceHandleId.includes('-pk') && targetHandleId.includes('-pk')) {
-            // PK to PK connection (rare, but possible for junction tables)
-            relationshipType = 'many-to-many';
-            relationshipName = `${sourceNode.data.name}_to_${targetNode.data.name}`;
-          } else if (sourceHandleId.includes('-m1') || targetHandleId.includes('-m1')) {
-            // M:1 relationship
-            relationshipType = 'one-to-many';
-            if (sourceHandleId.includes('-m1')) {
+
+          if (sourceColumn && targetColumn) {
+            const sourceIsPK = sourceColumn.isPrimaryKey;
+            const targetIsFK = targetColumn.isForeignKey;
+            const targetIsPK = targetColumn.isPrimaryKey;
+            const sourceIsFK = sourceColumn.isForeignKey;
+
+            if (sourceIsPK && targetIsFK) {
+              // Standard PK to FK (1:N)
+              relationshipType = 'one-to-many';
               relationshipName = `${sourceNode.data.name}_has_${targetNode.data.name}`;
-            } else {
+            } else if (sourceIsFK && targetIsPK) {
+              // FK to PK (N:1 - reverse of 1:N)
+              relationshipType = 'one-to-many';
               relationshipName = `${targetNode.data.name}_belongs_to_${sourceNode.data.name}`;
+            } else if (sourceIsPK && targetIsPK) {
+              // PK to PK connection (could be 1:1 or junction table)
+              relationshipType = 'one-to-one';
+              relationshipName = `${sourceNode.data.name}_relates_to_${targetNode.data.name}`;
+            } else if (sourceIsFK && targetIsFK) {
+              // FK to FK connection (many-to-many via junction table)
+              relationshipType = 'many-to-many';
+              relationshipName = `${sourceNode.data.name}_and_${targetNode.data.name}`;
             }
-          } else if (sourceHandleId.includes('-mm') || targetHandleId.includes('-mm')) {
-            // M:M relationship
-            relationshipType = 'many-to-many';
-            relationshipName = `${sourceNode.data.name}_and_${targetNode.data.name}`;
-          } else if (sourceHandleId.includes('-pk') && targetHandleId.includes('-fk')) {
-            // Standard PK to FK (1:N)
-            relationshipType = 'one-to-many';
-            relationshipName = `${sourceNode.data.name}_has_${targetNode.data.name}`;
-          } else if (sourceHandleId.includes('-fk') && targetHandleId.includes('-pk')) {
-            // FK to PK (N:1 - reverse of 1:N)
-            relationshipType = 'one-to-many';
-            relationshipName = `${targetNode.data.name}_belongs_to_${sourceNode.data.name}`;
           }
 
           const newEdge: RelationshipEdgeType = {
@@ -145,15 +167,15 @@ export const FlowCanvas: React.FC = () => {
     setSelectedEdge(edge.id);
   }, [setSelectedEdge]);
 
-  const handleDeleteTable = (nodeId: string) => {
+  const handleDeleteTable = useCallback((nodeId: string) => {
     if (confirm('Are you sure you want to delete this table?')) {
       deleteTable(nodeId);
     }
-  };
+  }, [deleteTable]);
 
-  const handleEditTable = (nodeId: string) => {
+  const handleEditTable = useCallback((nodeId: string) => {
     setSelectedNode(nodeId);
-  };
+  }, [setSelectedNode]);
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
@@ -174,12 +196,12 @@ export const FlowCanvas: React.FC = () => {
 
   const selectedNodeData = useMemo(() => {
     if (!selectedNode) return null;
-    return schema.nodes.find(node => node.id === selectedNode);
+    return schema.nodes.find(node => node.id === selectedNode) || null;
   }, [selectedNode, schema.nodes]);
 
   const selectedEdgeData = useMemo(() => {
     if (!selectedEdge) return null;
-    return schema.edges.find(edge => edge.id === selectedEdge);
+    return schema.edges.find(edge => edge.id === selectedEdge) || null;
   }, [selectedEdge, schema.edges]);
 
   return (
@@ -208,7 +230,7 @@ export const FlowCanvas: React.FC = () => {
                 <TemplatesPanel />
               </TabsContent>
               <TabsContent value="properties" className="h-full m-0">
-                <PropertiesPanel 
+                <PropertiesPanel
                   selectedNode={selectedNodeData}
                   selectedEdge={selectedEdgeData}
                   onAddColumn={addColumn}
@@ -217,6 +239,7 @@ export const FlowCanvas: React.FC = () => {
                   onUpdateNode={updateTable}
                   onDeleteNode={deleteTable}
                   onDeleteEdge={deleteRelationship}
+                  onUpdateEdge={updateRelationship}
                 />
               </TabsContent>
             </div>
@@ -236,8 +259,8 @@ export const FlowCanvas: React.FC = () => {
                 },
               }))}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
               onConnect={onConnect}
               onNodeClick={onNodeClick}
               onEdgeClick={onEdgeClick}

@@ -35,6 +35,7 @@ interface PropertiesPanelProps {
   onUpdateNode: (nodeId: string, updates: Partial<TableNode>) => void;
   onDeleteNode: (nodeId: string) => void;
   onDeleteEdge: (edgeId: string) => void;
+  onUpdateEdge?: (edgeId: string, updates: Partial<RelationshipEdge>) => void;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
@@ -46,6 +47,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onUpdateNode,
   onDeleteNode,
   onDeleteEdge,
+  onUpdateEdge,
 }) => {
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnType, setNewColumnType] = useState('VARCHAR');
@@ -90,7 +92,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label className="text-xs font-semibold">Relationship Type</Label>
-            <Select defaultValue={selectedEdge.type}>
+            <Select
+              value={selectedEdge.type}
+              onValueChange={(value: 'one-to-one' | 'one-to-many' | 'many-to-many') => {
+                if (onUpdateEdge) {
+                  onUpdateEdge(selectedEdge.id, { type: value });
+                }
+              }}
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -103,8 +112,33 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </div>
 
           <div className="space-y-2">
+            <Label className="text-xs font-semibold">Relationship Name</Label>
+            <Input
+              value={selectedEdge.data.name || ''}
+              onChange={(e) => {
+                if (onUpdateEdge) {
+                  onUpdateEdge(selectedEdge.id, {
+                    data: { ...selectedEdge.data, name: e.target.value }
+                  });
+                }
+              }}
+              placeholder="Enter relationship name"
+              className="text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">On Delete</Label>
-            <Select defaultValue={selectedEdge.data.onDelete}>
+            <Select
+              value={selectedEdge.data.onDelete}
+              onValueChange={(value) => {
+                if (onUpdateEdge) {
+                  onUpdateEdge(selectedEdge.id, {
+                    data: { ...selectedEdge.data, onDelete: value }
+                  });
+                }
+              }}
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -120,7 +154,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
           <div className="space-y-2">
             <Label className="text-xs font-semibold">On Update</Label>
-            <Select defaultValue={selectedEdge.data.onUpdate}>
+            <Select
+              value={selectedEdge.data.onUpdate}
+              onValueChange={(value) => {
+                if (onUpdateEdge) {
+                  onUpdateEdge(selectedEdge.id, {
+                    data: { ...selectedEdge.data, onUpdate: value }
+                  });
+                }
+              }}
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -170,27 +213,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
   };
 
-  const handleUpdateRelationshipType = (type: 'one-to-one' | 'one-to-many' | 'many-to-many') => {
-    if (selectedEdge) {
-      onUpdateEdge(selectedEdge.id, { type });
-    }
-  };
 
-  const handleUpdateRelationshipName = (name: string) => {
-    if (selectedEdge) {
-      onUpdateEdge(selectedEdge.id, {
-        data: { ...selectedEdge.data, name }
-      });
-    }
-  };
-
-  const handleUpdateRelationshipActions = (onDelete: string, onUpdate: string) => {
-    if (selectedEdge) {
-      onUpdateEdge(selectedEdge.id, {
-        data: { ...selectedEdge.data, onDelete, onUpdate }
-      });
-    }
-  };
 
   return (
     <Card className="h-full">
@@ -227,7 +250,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <TabsTrigger value="columns">Columns</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="columns" className="space-y-3">
             {/* Add New Column */}
             <div className="space-y-2">
@@ -292,72 +315,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             </div>
           </TabsContent>
           
-          <TabsContent value="sql" className="space-y-3">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Relationship Type</Label>
-              <Select 
-                value={selectedEdge?.type || 'one-to-many'} 
-                onValueChange={(value: 'one-to-one' | 'one-to-many' | 'many-to-many') => handleUpdateRelationshipType(value)}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="one-to-one">One to One (1:1)</SelectItem>
-                  <SelectItem value="one-to-many">One to Many (1:N)</SelectItem>
-                  <SelectItem value="many-to-many">Many to Many (M:N)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Relationship Name</Label>
-              <Input
-                value={selectedEdge?.data?.name || ''}
-                onChange={(e) => handleUpdateRelationshipName(e.target.value)}
-                placeholder="Enter relationship name"
-                className="text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">On Delete</Label>
-              <Select 
-                value={selectedEdge?.data?.onDelete || 'CASCADE'}
-                onValueChange={(value: string) => handleUpdateRelationshipActions(value, selectedEdge?.data?.onUpdate || 'CASCADE')}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASCADE">CASCADE</SelectItem>
-                  <SelectItem value="SET NULL">SET NULL</SelectItem>
-                  <SelectItem value="SET DEFAULT">SET DEFAULT</SelectItem>
-                  <SelectItem value="RESTRICT">RESTRICT</SelectItem>
-                  <SelectItem value="NO ACTION">NO ACTION</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">On Update</Label>
-              <Select 
-                value={selectedEdge?.data?.onUpdate || 'CASCADE'}
-                onValueChange={(value: string) => handleUpdateRelationshipActions(selectedEdge?.data?.onDelete || 'CASCADE', value)}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASCADE">CASCADE</SelectItem>
-                  <SelectItem value="SET NULL">SET NULL</SelectItem>
-                  <SelectItem value="SET DEFAULT">SET DEFAULT</SelectItem>
-                  <SelectItem value="RESTRICT">RESTRICT</SelectItem>
-                  <SelectItem value="NO ACTION">NO ACTION</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </TabsContent>
           
           <TabsContent value="settings" className="space-y-4">
             <div className="space-y-2">
